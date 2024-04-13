@@ -280,25 +280,46 @@ def get_segments(img, task, reftxt, mask_dilate_slider, state):
     if isinstance(img['mask'], np.ndarray):
         pil_mask = Image.fromarray(img['mask'])
     img = {'image': pil_image, 'mask': pil_mask}
-    img_ret, seg_info = SEEM.inference(img, task, reftxt=reftxt)
+
+    
+    img_ret, seg_info = SEEM.inference(img, task, reftxt=reftxt) 
+    # this will return a PIL image that include segmentation masks, annotations, or any other visual information derived from the inference process.
+
+    
     # SEEM doesn't always respect the input img dimentions
+    
     tgt_size = (img['image'].width, img['image'].height)
     img_ret = img_ret.resize(tgt_size, resample=Image.Resampling.NEAREST)
+
+    #image is resized to target size
+    
     state['orignal_segmented'] = np.array(img_ret).copy()
     state['base_layer'] = np.array(img_ret)
     state['segment_info'] = seg_info
     img_ret_array = np.array(img_ret)
+    
+    # stored in state dict.
+
+    
     img_ret_array[:, :, 3] = 255 - img_ret_array[:, :, 3]
+    # transparency of the obtained PIL image segments is inverted using above line.
+
+    
     # NOTE: if write out as a png, the pixels values get messed up. Same reason the client side colors look weird.
     # cv2.imwrite(f"get_segments_img_ret.bmp", img_ret_array)
 
     for obj_id, lable in seg_info.items():
+        
         obj_img = img_ret_array[:, :, 3] == 255 - obj_id
+        # all pixel in the PIL image are set to true else false
+        
         # cv2.imwrite(f"img_{obj_id}.png", obj_img.astype(np.uint8) * 255)
         # log_image_and_mask(np.array(img['image']), obj_img)
+        
         bbox = get_bounding_box(obj_img)
         print(f"obj_id={obj_id}, lable={lable}, bbox={bbox}")
         state['seg_boxes'][obj_id] = bbox
+        # get and print the segmented image in bound box
 
     # add a special event, obj stays at the original spot
     data = {}
@@ -307,7 +328,6 @@ def get_segments(img, task, reftxt, mask_dilate_slider, state):
     data["selected"] = True
     evt = gr.SelectData(None, data)
     mask_dilate_slider, _, state = changed_objects_handler(mask_dilate_slider, state, evt)
-
     state['base_layer_masked'], state = get_base_layer_mask(state)
     if mask_dilate_slider != 0:
         enlarged_masked_background, state = get_enlarged_masked_background(state, mask_dilate_slider)
